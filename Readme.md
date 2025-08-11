@@ -133,3 +133,9 @@ const linking = {
     },
   },
 };
+
+## 📦 Descargar APK (Android)
+
+👉 **[Descargar APK aquí](https://expo.dev/accounts/alextorvi/projects/metracritic-app/builds/a3a1afe8-0aea-47cf-b566-d3f078181b5e)**
+
+> Si tu teléfono lo solicita, habilita la instalación desde orígenes desconocidos.

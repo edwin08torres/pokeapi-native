@@ -1,11 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchPokemonDetails, PokemonDetails } from '../api/pokeapi';
+import { useQuery } from "@tanstack/react-query";
+import { fetchPokemonDetails } from "../api/pokeapi";
 
-export function usePokemonDetails(name: string) {
-  return useQuery<PokemonDetails>({
-    queryKey: ['pokemon', name],
-    queryFn: () => fetchPokemonDetails(name),
-    enabled: !!name,
-    staleTime: 1000 * 60 * 10,
+export function usePokemonDetails(
+  name?: string,
+  opts?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ["pokemon", name],
+    queryFn: () => fetchPokemonDetails(name!), 
+    enabled: !!name && (opts?.enabled ?? true),
+    staleTime: 1000 * 60 * 30,
   });
 }

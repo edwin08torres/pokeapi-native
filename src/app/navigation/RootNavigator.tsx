@@ -1,15 +1,16 @@
+import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import TabsNavigator from "./TabsNavigator";
+
+import TabsNavigator, { TabsParamList } from "./TabsNavigator";
 import DetailsScreen from "../../screens/DetailsScreen";
 
 export type RootStackParamList = {
-  Tabs: undefined;
+  Tabs: { screen?: keyof TabsParamList } | undefined;
   Details: { name: string };
 };
 
-
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
   return (

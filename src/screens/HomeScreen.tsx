@@ -1,7 +1,21 @@
-import React, { useMemo, useState } from "react";
-import { FlatList, View, Text, TextInput } from "react-native";
+import React, { useMemo, useState, useCallback } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  View,
+  Text,
+  TextInput,
+} from "react-native";
 import { usePokemons } from "../hooks/usePokemons";
 import PokemonCard from "../components/PokemonCard";
+import { useFavorites } from "../store/useFavorites";
+import type { PokemonListItem } from "../api/pokeapi";
+
+const getIdFromUrl = (url: string) =>
+  Number(url.match(/\/pokemon\/(\d+)\/?$/)?.[1] ?? 0);
+
+const spriteUrl = (id: number) =>
+  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 
 export default function HomeScreen({ navigation }: any) {
   const {
@@ -12,15 +26,47 @@ export default function HomeScreen({ navigation }: any) {
     isLoading,
     isError,
   } = usePokemons();
+
+  const favorites = useFavorites((s) => s.favorites);
+  const toggleFav = useFavorites((s) => s.toggle);
+
   const [query, setQuery] = useState("");
 
   const items = useMemo(
     () => (data?.pages ?? []).flatMap((p) => p.items),
     [data]
   );
+
   const filtered = useMemo(
     () => items.filter((p) => p.name.includes(query.toLowerCase())),
     [items, query]
+  );
+
+  const keyExtractor = useCallback((item: PokemonListItem) => item.name, []);
+
+  const handleEndReached = useCallback(() => {
+    if (!hasNextPage || isFetchingNextPage) return;
+    fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: PokemonListItem }) => {
+      const id = getIdFromUrl(item.url);
+      const image = id ? spriteUrl(id) : undefined;
+      const isFavorite = !!favorites[item.name];
+
+      return (
+        <PokemonCard
+          name={item.name}
+          id={id}
+          image={image}
+          isFavorite={isFavorite}
+          onToggleFavorite={() => toggleFav(item.name)}
+          onPress={() => navigation.navigate("Details", { name: item.name })}
+        />
+      );
+    },
+    [favorites, navigation, toggleFav]
   );
 
   if (isLoading) {
@@ -75,21 +121,21 @@ export default function HomeScreen({ navigation }: any) {
           marginBottom: 12,
         }}
       />
+
       <FlatList
         data={filtered}
-        keyExtractor={(item) => item.name}
-        numColumns={3}
-        columnWrapperStyle={{ gap: 12 }}
+        keyExtractor={keyExtractor}
+        numColumns={1}
         contentContainerStyle={{ gap: 12, paddingBottom: 24 }}
-        onEndReached={() =>
-          hasNextPage && !isFetchingNextPage && fetchNextPage()
+        onEndReachedThreshold={0.6}
+        onEndReached={handleEndReached}
+        renderItem={renderItem}
+        extraData={favorites}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator style={{ paddingVertical: 16 }} />
+          ) : null
         }
-        renderItem={({ item }) => (
-          <PokemonCard
-            name={item.name}
-            onPress={() => navigation.navigate("Details", { name: item.name })}
-          />
-        )}
       />
     </View>
   );

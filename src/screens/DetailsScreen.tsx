@@ -1,62 +1,294 @@
-import { View, Text, Image, ScrollView } from "react-native";
-import { useRoute, RouteProp } from "@react-navigation/native";
-import { usePokemonDetails } from "../hooks/usePokemonDetails";
+import React, { useState } from "react";
+import { View, Text, ScrollView } from "react-native";
+import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
+
 import type { RootStackParamList } from "../app/navigation/RootNavigator";
 import type { PokemonStat } from "../api/pokeapi";
+import { usePokemonDetails } from "../hooks/usePokemonDetails";
+import { useEvolutionChain } from "../hooks/useEvolutionChain";
+import { usePokemonMoves } from "../hooks/usePokemonMoves";
+import { usePokemonLocations } from "../hooks/usePokemonLocations";
+import { useCompare } from "../store/useCompare";
+
+import Chip from "../components/Chip";
+import StatBar from "../components/StatBar";
+import MoveCard from "../components/MoveCard";
+import { colorForType } from "../theme/typeColors";
+import CompareReadyModal from "../components/CompareReadyModal";
 
 type DetailsRouteProp = RouteProp<RootStackParamList, "Details">;
+type Nav = NativeStackNavigationProp<RootStackParamList, "Details">;
 
 export default function DetailsScreen() {
-  const { params: { name } } = useRoute<DetailsRouteProp>();
+  const navigation = useNavigation<Nav>();
+  const {
+    params: { name },
+  } = useRoute<DetailsRouteProp>();
+
   const { data, isLoading } = usePokemonDetails(name);
+  const evo = useEvolutionChain(name);
+  const moves = usePokemonMoves(name, 14);
+  const locs = usePokemonLocations(data?.id);
+
+  // Compare (2 slots)
+  const selectRef = useCompare((s) => s.selectRef);
+  const compareWith = useCompare((s) => s.compareWith);
+  const isFull = useCompare((s) => s.isFull()); // boolean
+  const ref = useCompare((s) => s.refName()); // string | undefined
+  const refInfo = usePokemonDetails(ref, { enabled: !!ref }); // ← carga imagen ref
+  const isRef = ref === name;
+
+  // Modal
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const [showLocs, setShowLocs] = useState(false);
 
   if (isLoading) return <Text style={{ color: "#fff" }}>Cargando…</Text>;
   if (!data) return null;
 
+  const mainType = data.types[0];
+  const mainColor = colorForType(mainType);
+
+  const goToCompare = () => {
+    setShowConfirm(false);
+    navigation.navigate("Tabs", { screen: "Compare" });
+  };
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "#000", padding: 16 }}>
-      {!!data.image && (
-        <Image
-          source={{ uri: data.image }}
-          style={{ width: 220, height: 220, alignSelf: "center" }}
-        />
-      )}
-
-      <Text
-        style={{
-          color: "#fff",
-          fontSize: 22,
-          textTransform: "capitalize",
-          textAlign: "center",
-          marginVertical: 8,
-        }}
+    <>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: "#000" }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
       >
-        {data.name} #{data.id}
-      </Text>
+        {/* Header / imagen */}
+        <View style={{ alignItems: "center", marginBottom: 10 }}>
+          {!!data.image && (
+            <Image
+              source={data.image}
+              style={{ width: 240, height: 240 }}
+              contentFit="contain"
+              transition={200}
+              cachePolicy="disk"
+            />
+          )}
+          <Text
+            style={{
+              color: "#fff",
+              fontSize: 24,
+              fontWeight: "800",
+              textTransform: "capitalize",
+            }}
+          >
+            {data.name}{" "}
+            <Text style={{ color: "#9CA3AF", fontSize: 18 }}>#{data.id}</Text>
+          </Text>
 
-      <Text style={{ color: "#fff", marginTop: 12 }}>
-        Tipos: {data.types.join(", ")}
-      </Text>
-      <Text style={{ color: "#fff", marginTop: 8 }}>
-        Habilidades: {data.abilities.join(", ")}
-      </Text>
+          {/* Chips de tipos */}
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+            {data.types.map((t) => (
+              <Chip key={t} label={t} color={colorForType(t)} />
+            ))}
+          </View>
 
-      <Text style={{ color: "#fff", marginTop: 12, marginBottom: 6 }}>Stats</Text>
-      {data.stats.map((s: PokemonStat) => (
-        <View key={s.name} style={{ marginBottom: 6 }}>
-          <Text style={{ color: "#aaa", marginBottom: 2 }}>{s.name}</Text>
-          <View style={{ height: 8, backgroundColor: "#222", borderRadius: 6 }}>
-            <View
+          {/* Botonera comparación (2 pasos) */}
+          <View style={{ gap: 8, marginTop: 12 }}>
+            {/* 1) Marcar/Quitar referencia */}
+            <Chip
+              label={
+                isRef
+                  ? "Quitar referencia"
+                  : ref && ref !== data.name
+                    ? `Referencia actual: ${ref}`
+                    : "Marcar como referencia"
+              }
+              onPress={!ref || isRef ? () => selectRef(data.name) : undefined}
+              color={!ref || isRef ? mainColor : "#1f2937"}
+              style={{ opacity: !ref || isRef ? 1 : 0.6, alignSelf: "center" }}
+            />
+
+            {/* 2) Comparar con la referencia */}
+            <Chip
+              label={
+                ref && ref !== data.name
+                  ? isFull
+                    ? "Comparación completa (2/2)"
+                    : "Comparar con la referencia"
+                  : "Selecciona una referencia primero"
+              }
+              onPress={
+                ref && ref !== data.name && !isFull
+                  ? () => {
+                      compareWith(data.name);
+                      setShowConfirm(true); // ← abrimos el modal bonito
+                    }
+                  : undefined
+              }
+              color={
+                ref && ref !== data.name && !isFull ? "#16a34a" : "#1f2937"
+              }
               style={{
-                width: `${Math.min(s.value, 100)}%`,
-                height: 8,
-                backgroundColor: "#4ade80",
-                borderRadius: 6,
+                opacity: ref && ref !== data.name && !isFull ? 1 : 0.6,
+                alignSelf: "center",
               }}
             />
           </View>
         </View>
-      ))}
-    </ScrollView>
+
+        {/* Stats */}
+        <Text
+          style={{
+            color: "#fff",
+            marginTop: 8,
+            marginBottom: 8,
+            fontWeight: "800",
+          }}
+        >
+          Stats
+        </Text>
+        <View style={{ gap: 10 }}>
+          {data.stats.map((s: PokemonStat) => (
+            <View key={s.name}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 4,
+                }}
+              >
+                <Text style={{ color: "#9CA3AF", textTransform: "capitalize" }}>
+                  {s.name}
+                </Text>
+                <Text style={{ color: "#9CA3AF" }}>{s.value}</Text>
+              </View>
+              <StatBar value={s.value} color={mainColor} />
+            </View>
+          ))}
+        </View>
+
+        {/* Evolutions */}
+        <Text
+          style={{
+            color: "#fff",
+            marginTop: 18,
+            marginBottom: 10,
+            fontWeight: "800",
+          }}
+        >
+          Evolutions
+        </Text>
+        {evo.isLoading ? (
+          <Text style={{ color: "#aaa" }}>Cargando…</Text>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 8 }}
+          >
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              {evo.data?.map((n, idx) => (
+                <React.Fragment key={n}>
+                  <Chip
+                    label={n}
+                    onPress={() => navigation.push("Details", { name: n })}
+                    color="#111"
+                    tint="#fff"
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 10,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: "#222",
+                    }}
+                  />
+                  {idx < (evo.data?.length ?? 1) - 1 && (
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color="#9CA3AF"
+                    />
+                  )}
+                </React.Fragment>
+              ))}
+            </View>
+          </ScrollView>
+        )}
+
+        {/* Moves */}
+        <Text
+          style={{
+            color: "#fff",
+            marginTop: 18,
+            marginBottom: 10,
+            fontWeight: "800",
+          }}
+        >
+          Moves (level-up)
+        </Text>
+        {moves.isLoading ? (
+          <Text style={{ color: "#aaa" }}>Cargando…</Text>
+        ) : (
+          <View>
+            {moves.data?.map((m) => (
+              <MoveCard key={m.name} m={m} />
+            ))}
+          </View>
+        )}
+
+        {/* Locations (acordeón) */}
+        <Text style={{ color: "#fff", marginTop: 18, fontWeight: "800" }}>
+          Locations
+        </Text>
+        {locs.isLoading ? (
+          <Text style={{ color: "#aaa", marginTop: 6 }}>Cargando…</Text>
+        ) : (
+          <View style={{ marginTop: 6 }}>
+            <Text
+              onPress={() => setShowLocs((v) => !v)}
+              style={{ color: "#60a5fa", marginBottom: 8 }}
+            >
+              {showLocs
+                ? "Ocultar ubicaciones"
+                : `Ver ubicaciones (${locs.data?.length || 0})`}
+            </Text>
+            {showLocs &&
+              (locs.data?.length ? (
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
+                  {locs.data.map((l) => (
+                    <Chip
+                      key={l}
+                      label={l.replaceAll("-", " ")}
+                      outlined
+                      tint="#9CA3AF"
+                    />
+                  ))}
+                </View>
+              ) : (
+                <Text style={{ color: "#9CA3AF" }}>
+                  No hay datos de encuentros.
+                </Text>
+              ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Modal bonito */}
+      <CompareReadyModal
+        visible={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onOpenCompare={goToCompare}
+        aName={ref ?? "—"}
+        bName={data.name}
+        aImage={refInfo.data?.image ?? undefined} // ← ahora sí
+        bImage={data.image ?? undefined}
+        color={mainColor}
+      />
+    </>
   );
 }

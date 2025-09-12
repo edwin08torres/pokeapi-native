@@ -1,13 +1,15 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type FavState = {
+type State = {
   favorites: Record<string, true>;
   toggle: (name: string) => void;
+  isFavorite: (name: string) => boolean;
+  clear: () => void;
 };
 
-export const useFavorites = create<FavState>()(
+export const useFavorites = create<State>()(
   persist(
     (set, get) => ({
       favorites: {},
@@ -18,7 +20,12 @@ export const useFavorites = create<FavState>()(
           else f[name] = true;
           return { favorites: f };
         }),
+      isFavorite: (name) => !!get().favorites[name],
+      clear: () => set({ favorites: {} }),
     }),
-    { name: "favorites", storage: createJSONStorage(() => AsyncStorage) }
+    {
+      name: "favorites",
+      storage: createJSONStorage(() => AsyncStorage),
+    }
   )
 );

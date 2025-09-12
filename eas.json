@@ -1,19 +1,9 @@
 {
-  "cli": {
-    "version": ">= 8.0.0",
-    "appVersionSource": "local"
-  },
+  "cli": { "version": ">= 8.0.0", "appVersionSource": "local" },
   "build": {
-    "preview": {
-      "android": {
-        "buildType": "apk"
-      },
-      "channel": "preview"
-    },
+    "preview": { "android": { "buildType": "apk" }, "channel": "preview" },
     "production": {
-      "android": {
-        "buildType": "apk"
-      },
+      "android": { "buildType": "app-bundle" },
       "channel": "production"
     }
   }

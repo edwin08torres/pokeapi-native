@@ -33,12 +33,11 @@ export default function DetailsScreen() {
   const moves = usePokemonMoves(name, 14);
   const locs = usePokemonLocations(data?.id);
 
-  // Compare (2 slots)
   const selectRef = useCompare((s) => s.selectRef);
   const compareWith = useCompare((s) => s.compareWith);
-  const isFull = useCompare((s) => s.isFull()); // boolean
-  const ref = useCompare((s) => s.refName()); // string | undefined
-  const refInfo = usePokemonDetails(ref, { enabled: !!ref }); // ← carga imagen ref
+  const isFull = useCompare((s) => s.isFull());
+  const ref = useCompare((s) => s.refName());
+  const refInfo = usePokemonDetails(ref, { enabled: !!ref });
   const isRef = ref === name;
 
   // Modal
@@ -86,16 +85,13 @@ export default function DetailsScreen() {
             <Text style={{ color: "#9CA3AF", fontSize: 18 }}>#{data.id}</Text>
           </Text>
 
-          {/* Chips de tipos */}
           <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
             {data.types.map((t) => (
               <Chip key={t} label={t} color={colorForType(t)} />
             ))}
           </View>
 
-          {/* Botonera comparación (2 pasos) */}
           <View style={{ gap: 8, marginTop: 12 }}>
-            {/* 1) Marcar/Quitar referencia */}
             <Chip
               label={
                 isRef
@@ -109,7 +105,6 @@ export default function DetailsScreen() {
               style={{ opacity: !ref || isRef ? 1 : 0.6, alignSelf: "center" }}
             />
 
-            {/* 2) Comparar con la referencia */}
             <Chip
               label={
                 ref && ref !== data.name
@@ -122,7 +117,7 @@ export default function DetailsScreen() {
                 ref && ref !== data.name && !isFull
                   ? () => {
                       compareWith(data.name);
-                      setShowConfirm(true); // ← abrimos el modal bonito
+                      setShowConfirm(true);
                     }
                   : undefined
               }
@@ -148,7 +143,7 @@ export default function DetailsScreen() {
         >
           Stats
         </Text>
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 10, paddingHorizontal: 4 }}>
           {data.stats.map((s: PokemonStat) => (
             <View key={s.name}>
               <View
@@ -225,6 +220,7 @@ export default function DetailsScreen() {
             marginTop: 18,
             marginBottom: 10,
             fontWeight: "800",
+            paddingHorizontal: 4,
           }}
         >
           Moves (level-up)
@@ -232,14 +228,14 @@ export default function DetailsScreen() {
         {moves.isLoading ? (
           <Text style={{ color: "#aaa" }}>Cargando…</Text>
         ) : (
-          <View>
+          <View style={{ paddingHorizontal: 2 }}>
             {moves.data?.map((m) => (
               <MoveCard key={m.name} m={m} />
             ))}
           </View>
         )}
 
-        {/* Locations (acordeón) */}
+        {/* Locations */}
         <Text style={{ color: "#fff", marginTop: 18, fontWeight: "800" }}>
           Locations
         </Text>
@@ -278,14 +274,13 @@ export default function DetailsScreen() {
         )}
       </ScrollView>
 
-      {/* Modal bonito */}
       <CompareReadyModal
         visible={showConfirm}
         onClose={() => setShowConfirm(false)}
         onOpenCompare={goToCompare}
         aName={ref ?? "—"}
         bName={data.name}
-        aImage={refInfo.data?.image ?? undefined} // ← ahora sí
+        aImage={refInfo.data?.image ?? undefined}
         bImage={data.image ?? undefined}
         color={mainColor}
       />

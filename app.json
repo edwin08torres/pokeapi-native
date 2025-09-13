@@ -1,31 +1,31 @@
 {
   "expo": {
-    "name": "metracritic-app",
-    "slug": "metracritic-app",
+    "name": "PokeSpark",
+    "slug": "PokeSpark",
     "version": "1.0.3",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/iconpika.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "ios": { "supportsTablet": true },
+    "ios": { 
+      "supportsTablet": true,
+      "bundleIdentifier": "com.edwintorrez.pokedex"   
+    },
     "android": {
-      "package": "com.edwintorrez.pokedex",
+      "package": "com.edwintorrez.pokedex",         
       "versionCode": 4,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/iconpika.png",
+        "backgroundColor": "#FFDE00"
       },
       "edgeToEdgeEnabled": true
     },
     "web": { "favicon": "./assets/favicon.png" },
-    "extra": {
-      "eas": { "projectId": "26a718aa-50fd-4d59-815c-0c750d2e30e2" }
-    },
+    "extra": { "eas": { "projectId": "26a718aa-50fd-4d59-815c-0c750d2e30e2" } },
     "runtimeVersion": { "policy": "appVersion" },
     "updates": {
       "url": "https://u.expo.dev/26a718aa-50fd-4d59-815c-0c750d2e30e2"

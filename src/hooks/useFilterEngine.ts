@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PokemonListItem } from "../api/pokeapi";
-import { getNamesByType, getNamesByGeneration } from "../api/filterHelpers";
-import { ensureStageIndex } from "../api/getPokemonsByStage";
-import { getIdFromUrl } from "../utils/pokemonAssets";
+import {
+    getNamesByType,
+    getEvolutionStage,
+    getNamesByGeneration,
+} from "../api/filterHelpers";
+import { ensureFormsIndex } from "../api/pokemonFormsIndex";
 
 type StageNum = 0 | 1 | 2 | 3;
 
 type Caches = {
     typeSets: Map<string, Set<string>>;
     genSets: Map<number, Set<string>>;
+    stages: Map<string, StageNum>;
 };
 
 type FiltersIn = {
@@ -21,6 +25,9 @@ type FiltersIn = {
 
 type AbortState = { ctrl: AbortController | null; seq: number };
 
+const MAX_STAGE_CANDIDATES = 1200;
+const STAGE_FETCH_CHUNK = 24;
+
 export function useFilterEngine(
     items: PokemonListItem[],
     favorites: Record<string, boolean>,
@@ -32,6 +39,7 @@ export function useFilterEngine(
     const cachesRef = useRef<Caches>({
         typeSets: new Map(),
         genSets: new Map(),
+        stages: new Map(),
     });
 
     const abortRef = useRef<AbortState>({ ctrl: null, seq: 0 });
@@ -42,7 +50,6 @@ export function useFilterEngine(
         return items.filter((p) => p.name.includes(q));
     }, [items, filters.query]);
 
-    // Utils set
     const intersect = (a: Set<string>, b: Set<string>) => {
         const out = new Set<string>();
         for (const v of a) if (b.has(v)) out.add(v);
@@ -66,6 +73,26 @@ export function useFilterEngine(
         return set;
     }, []);
 
+    const ensureStagesFor = useCallback(async (names: string[]) => {
+        const lower = names.map((n) => n.toLowerCase());
+        let missing = lower.filter((n) => !cachesRef.current.stages.has(n));
+
+        if (missing.length > MAX_STAGE_CANDIDATES) {
+            missing = missing.slice(0, MAX_STAGE_CANDIDATES);
+        }
+        if (missing.length === 0) return;
+
+        for (let i = 0; i < missing.length; i += STAGE_FETCH_CHUNK) {
+            const chunk = missing.slice(i, i + STAGE_FETCH_CHUNK);
+            const pairs = await Promise.all(
+                chunk.map(async (n) => [n, await getEvolutionStage(n)] as const)
+            );
+            for (const [n, s] of pairs) {
+                cachesRef.current.stages.set(n, ((s ?? 0) as StageNum) || 0);
+            }
+        }
+    }, []);
+
     const hasActive =
         filters.types.length > 0 ||
         (Number(filters.stage) as StageNum) > 0 ||
@@ -78,15 +105,35 @@ export function useFilterEngine(
             const silent = !!opts?.silent;
             if (!silent) setIsApplying(true);
 
-            // invalidar corrida previa
             const seq = ++abortRef.current.seq;
             abortRef.current.ctrl?.abort();
             abortRef.current.ctrl = new AbortController();
 
             try {
+                const q = filters.query.trim().toLowerCase();
                 let result = [...byText];
 
-                // Favoritos
+                const onlyTextSearch =
+                    !!q &&
+                    filters.types.length === 0 &&
+                    !filters.onlyFavorites &&
+                    filters.generation === 0 &&
+                    Number(filters.stage) === 0;
+
+                if (onlyTextSearch) {
+                    try {
+                        const forms = await ensureFormsIndex();
+                        if (forms.length) {
+                            const baseNames = new Set(result.map((r) => r.name));
+                            const extra = forms.filter(
+                                (p) => p.name.includes(q) && !baseNames.has(p.name)
+                            );
+                            result = result.concat(extra.slice(0, 150));
+                        }
+                    } catch {
+                    }
+                }
+
                 if (filters.onlyFavorites) {
                     const fav = new Set(Object.keys(favorites));
                     result = result.filter((r) => fav.has(r.name));
@@ -97,24 +144,21 @@ export function useFilterEngine(
                     for (const t of filters.types) sets.push(await ensureTypeSet(t));
                     let andSet: Set<string> | null = null;
                     for (const s of sets) andSet = andSet ? intersect(andSet, s) : new Set(s);
-                    if (andSet) {
-                        result = result.filter((r) => andSet!.has(r.name.toLowerCase()));
-                    }
+                    if (andSet) result = result.filter((r) => andSet!.has(r.name));
                 }
 
-                // Generación
                 if (filters.generation > 0) {
                     const gset = await ensureGenSet(filters.generation);
-                    result = result.filter((r) => gset.has(r.name.toLowerCase()));
+                    result = result.filter((r) => gset.has(r.name));
                 }
 
                 const stage = Number(filters.stage) as StageNum;
                 if (stage > 0 && result.length > 0) {
-                    const { base1 } = await ensureStageIndex(abortRef.current.ctrl?.signal);
-                    result = result.filter((r) => {
-                        const id = getIdFromUrl(r.url);
-                        return id > 0 && base1.get(id) === stage;
-                    });
+                    const names = result.map((r) => r.name);
+                    await ensureStagesFor(names);
+                    result = result.filter(
+                        (r) => (cachesRef.current.stages.get(r.name.toLowerCase()) ?? 0) === stage
+                    );
                 }
 
                 if (seq !== abortRef.current.seq) return;
@@ -130,8 +174,10 @@ export function useFilterEngine(
             filters.types,
             filters.generation,
             filters.stage,
+            filters.query,
             ensureTypeSet,
             ensureGenSet,
+            ensureStagesFor,
         ]
     );
 
@@ -142,6 +188,7 @@ export function useFilterEngine(
 
         cachesRef.current.typeSets.clear();
         cachesRef.current.genSets.clear();
+        cachesRef.current.stages.clear();
 
         setList(items);
     }, [items]);
@@ -159,6 +206,7 @@ export function useFilterEngine(
         filters.stage,
         filters.onlyFavorites,
         filters.generation,
+        filters.query,
     ]);
 
     return { list, isApplying, applyFilters, hardReset };

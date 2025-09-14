@@ -11,7 +11,7 @@ type StageNum = 0 | 1 | 2 | 3;
 type Caches = {
     typeSets: Map<string, Set<string>>;
     genSets: Map<number, Set<string>>;
-    stages: Map<string, StageNum>; 
+    stages: Map<string, StageNum>;
 };
 
 type FiltersIn = {
@@ -23,6 +23,9 @@ type FiltersIn = {
 };
 
 type AbortState = { ctrl: AbortController | null; seq: number };
+
+const MAX_STAGE_CANDIDATES = 1200;
+const STAGE_FETCH_CHUNK = 24;     
 
 export function useFilterEngine(
     items: PokemonListItem[],
@@ -40,14 +43,12 @@ export function useFilterEngine(
 
     const abortRef = useRef<AbortState>({ ctrl: null, seq: 0 });
 
-    // Texto
     const byText = useMemo(() => {
         const q = filters.query.trim().toLowerCase();
         if (!q) return items;
         return items.filter((p) => p.name.includes(q));
     }, [items, filters.query]);
 
-    // Utils set
     const intersect = (a: Set<string>, b: Set<string>) => {
         const out = new Set<string>();
         for (const v of a) if (b.has(v)) out.add(v);
@@ -72,16 +73,22 @@ export function useFilterEngine(
     }, []);
 
     const ensureStagesFor = useCallback(async (names: string[]) => {
-        const miss = names
-            .map((n) => String(n).toLowerCase())
-            .filter((n) => !cachesRef.current.stages.has(n));
-        if (miss.length === 0) return;
+        const lower = names.map((n) => n.toLowerCase());
+        let missing = lower.filter((n) => !cachesRef.current.stages.has(n));
 
-        const pairs = await Promise.all(
-            miss.map(async (n) => [n, await getEvolutionStage(n)] as const)
-        );
-        for (const [n, s] of pairs) {
-            cachesRef.current.stages.set(n, ((s ?? 0) as StageNum) || 0);
+        if (missing.length > MAX_STAGE_CANDIDATES) {
+            missing = missing.slice(0, MAX_STAGE_CANDIDATES);
+        }
+        if (missing.length === 0) return;
+
+        for (let i = 0; i < missing.length; i += STAGE_FETCH_CHUNK) {
+            const chunk = missing.slice(i, i + STAGE_FETCH_CHUNK);
+            const pairs = await Promise.all(
+                chunk.map(async (n) => [n, await getEvolutionStage(n)] as const)
+            );
+            for (const [n, s] of pairs) {
+                cachesRef.current.stages.set(n, ((s ?? 0) as StageNum) || 0);
+            }
         }
     }, []);
 
@@ -117,7 +124,6 @@ export function useFilterEngine(
                     if (andSet) result = result.filter((r) => andSet!.has(r.name));
                 }
 
-                // Generación
                 if (filters.generation > 0) {
                     const gset = await ensureGenSet(filters.generation);
                     result = result.filter((r) => gset.has(r.name));
@@ -127,9 +133,9 @@ export function useFilterEngine(
                 if (stage > 0 && result.length > 0) {
                     const names = result.map((r) => r.name);
                     await ensureStagesFor(names);
+
                     result = result.filter((r) => {
-                        const key = r.name.toLowerCase();
-                        const st = cachesRef.current.stages.get(key) ?? 0; 
+                        const st = cachesRef.current.stages.get(r.name.toLowerCase()) ?? 0;
                         return st === stage;
                     });
                 }

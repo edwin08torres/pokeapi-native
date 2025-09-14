@@ -57,11 +57,12 @@ type Props = {
   draftQuery: string;
   setDraftQuery: (v: string) => void;
   onOpenFilters: () => void;
-  onSubmitSearch: () => void;
+  onSubmitSearch: () => void; // ENTER en el input -> mostrar resultados con query vigente
+  onSeeAll: () => void; // CTA "Ver todos" -> limpiar filtros+query y mostrar todo
   onQuickGen: (g: Filters["generation"]) => void;
   onQuickType: (t: string) => void;
   onQuickStage: (s: 1 | 2 | 3) => void;
-  warmup?: () => void; 
+  warmup?: () => void;
 };
 
 const HomeHub = memo(function HomeHub({
@@ -69,6 +70,7 @@ const HomeHub = memo(function HomeHub({
   setDraftQuery,
   onOpenFilters,
   onSubmitSearch,
+  onSeeAll,
   onQuickGen,
   onQuickType,
   onQuickStage,
@@ -77,7 +79,6 @@ const HomeHub = memo(function HomeHub({
   useEffect(() => {
     warmup?.();
   }, [warmup]);
-
   const art = (id: number) => spriteUrl(id);
 
   return (
@@ -114,7 +115,7 @@ const HomeHub = memo(function HomeHub({
             placeholderTextColor="#d1d5db"
             value={draftQuery}
             onChangeText={setDraftQuery}
-            onSubmitEditing={onSubmitSearch}
+            onSubmitEditing={onSubmitSearch} // ← solo cierra el Hub para mostrar filtro por texto
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
@@ -236,7 +237,7 @@ const HomeHub = memo(function HomeHub({
         </View>
 
         <Pressable
-          onPress={onSubmitSearch}
+          onPress={onSeeAll}
           style={({ pressed }) => [
             styles.cta,
             { transform: [{ scale: pressed ? 0.98 : 1 }] },

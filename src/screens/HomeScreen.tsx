@@ -107,14 +107,19 @@ export default function HomeScreen({ navigation }: any) {
   );
 
   const clearAll = useCallback(() => {
-    resetFilters(); 
+    resetFilters();
     setDraftQuery("");
-    hardReset(); 
+    hardReset();
     setRandomSeed(Date.now());
     setShowHub(true);
   }, [hardReset, resetFilters]);
 
   const handleSubmitSearch = useCallback(() => {
+    setShowHub(false); 
+    setRandomSeed(Date.now());
+  }, []);
+
+  const handleSeeAll = useCallback(() => {
     resetFilters();
     setDraftQuery("");
     hardReset();
@@ -124,6 +129,9 @@ export default function HomeScreen({ navigation }: any) {
 
   const quickGen = useCallback(
     async (gen: Filters["generation"]) => {
+      setShowHub(false);
+      setRandomSeed(Date.now());
+
       const st = useFilters.getState();
       useFilters.setState({
         types: [],
@@ -131,9 +139,8 @@ export default function HomeScreen({ navigation }: any) {
         stage: 0,
         onlyFavorites: st.onlyFavorites,
       });
+
       await applyFilters({ silent: false });
-      setRandomSeed(Date.now()); 
-      setShowHub(false);
       scrollTop();
     },
     [applyFilters]
@@ -141,6 +148,9 @@ export default function HomeScreen({ navigation }: any) {
 
   const quickType = useCallback(
     async (t: string) => {
+      setShowHub(false);
+      setRandomSeed(Date.now());
+
       const st = useFilters.getState();
       useFilters.setState({
         types: [t],
@@ -148,9 +158,8 @@ export default function HomeScreen({ navigation }: any) {
         stage: 0,
         onlyFavorites: st.onlyFavorites,
       });
+
       await applyFilters({ silent: false });
-      setRandomSeed(Date.now());
-      setShowHub(false);
       scrollTop();
     },
     [applyFilters]
@@ -158,6 +167,9 @@ export default function HomeScreen({ navigation }: any) {
 
   const quickStage = useCallback(
     async (s: 1 | 2 | 3) => {
+      setShowHub(false);
+      setRandomSeed(Date.now());
+
       const st = useFilters.getState();
       useFilters.setState({
         stage: s,
@@ -165,9 +177,8 @@ export default function HomeScreen({ navigation }: any) {
         generation: 0,
         onlyFavorites: st.onlyFavorites,
       });
+
       await applyFilters({ silent: false });
-      setRandomSeed(Date.now());
-      setShowHub(false);
       scrollTop();
     },
     [applyFilters]
@@ -197,7 +208,8 @@ export default function HomeScreen({ navigation }: any) {
         draftQuery={draftQuery}
         setDraftQuery={setDraftQuery}
         onOpenFilters={() => setShowFilters(true)}
-        onSubmitSearch={handleSubmitSearch}
+        onSubmitSearch={handleSubmitSearch} 
+        onSeeAll={handleSeeAll}
         onQuickGen={quickGen}
         onQuickType={quickType}
         onQuickStage={quickStage}
@@ -224,20 +236,12 @@ export default function HomeScreen({ navigation }: any) {
         }}
       >
         <Pressable
-          onPress={clearAll} 
+          onPress={clearAll}
           style={styles.iconBtn}
           android_ripple={{ color: "#1f2937" }}
         >
           <Ionicons name="grid-outline" size={18} color="#fff" />
         </Pressable>
-        {/* 
-        <Pressable
-          onPress={() => { setRandomSeed(Date.now()); scrollTop(); }}
-          style={styles.iconBtn}
-          android_ripple={{ color: "#1f2937" }}
-        >
-          <Ionicons name="shuffle-outline" size={18} color="#fff" />
-        </Pressable> */}
       </View>
 
       <FlatList
@@ -271,13 +275,31 @@ export default function HomeScreen({ navigation }: any) {
         updateCellsBatchingPeriod={50}
       />
 
+      {isApplying && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <PokeLoader size={96} />
+          <Text style={{ color: "#9CA3AF", marginTop: 8 }}>Filtrando…</Text>
+        </View>
+      )}
+
       <FiltersModal
         visible={showFilters}
         onClose={() => setShowFilters(false)}
         onApply={async () => {
-          await applyFilters({ silent: false });
-          setRandomSeed(Date.now());
           setShowHub(false);
+          setRandomSeed(Date.now());
+          await applyFilters({ silent: false });
           scrollTop();
         }}
       />

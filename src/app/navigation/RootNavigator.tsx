@@ -16,7 +16,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
   const scheme = useColorScheme();
-  const theme = scheme === "dark" ? MyDarkTheme : MyLightTheme;
+  const theme = scheme === "dark" ? MyDarkTheme : MyDarkTheme;
 
   return (
     <NavigationContainer theme={theme}>

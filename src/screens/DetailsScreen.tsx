@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
@@ -19,6 +19,9 @@ import MoveCard from "../components/MoveCard";
 import { colorForType } from "../theme/typeColors";
 import CompareReadyModal from "../components/CompareReadyModal";
 
+import PokeLoader from "../components/PokeLoader";
+import ErrorState from "../components/states/ErrorState";
+
 type DetailsRouteProp = RouteProp<RootStackParamList, "Details">;
 type Nav = NativeStackNavigationProp<RootStackParamList, "Details">;
 
@@ -28,7 +31,7 @@ export default function DetailsScreen() {
     params: { name },
   } = useRoute<DetailsRouteProp>();
 
-  const { data, isLoading } = usePokemonDetails(name);
+  const { data, isLoading, isError, refetch } = usePokemonDetails(name);
   const evo = useEvolutionChain(name);
   const moves = usePokemonMoves(name, 14);
   const locs = usePokemonLocations(data?.id);
@@ -40,12 +43,27 @@ export default function DetailsScreen() {
   const refInfo = usePokemonDetails(ref, { enabled: !!ref });
   const isRef = ref === name;
 
-  // Modal
   const [showConfirm, setShowConfirm] = useState(false);
-
   const [showLocs, setShowLocs] = useState(false);
 
-  if (isLoading) return <Text style={{ color: "#fff" }}>Cargando…</Text>;
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <PokeLoader size={96} />
+        <Text style={{ color: "#9CA3AF", marginTop: 8 }}>Cargando…</Text>
+      </View>
+    );
+  }
+  if (isError) {
+    return (
+      <View
+        style={{ flex: 1, backgroundColor: "#000", justifyContent: "center" }}
+      >
+        <ErrorState onRetry={() => refetch()} />
+      </View>
+    );
+  }
+
   if (!data) return null;
 
   const mainType = data.types[0];
@@ -62,7 +80,7 @@ export default function DetailsScreen() {
         style={{ flex: 1, backgroundColor: "#000" }}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
       >
-        {/* Header / imagen */}
+        {/* Header */}
         <View style={{ alignItems: "center", marginBottom: 10 }}>
           {!!data.image && (
             <Image
@@ -287,3 +305,12 @@ export default function DetailsScreen() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

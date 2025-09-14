@@ -1,21 +1,24 @@
-import React, { useMemo, useState, useCallback } from "react";
-import { FlatList, View, Text, TextInput, Pressable } from "react-native";
+import React, { useMemo, useState, useCallback, useRef } from "react";
+import { FlatList, View, Text, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+
 import { usePokemons } from "../hooks/usePokemons";
 import PokemonCard from "../components/PokemonCard";
 import { useFavorites } from "../store/useFavorites";
 import { useFilters } from "../store/useFilters";
+import type { Filters } from "../store/useFilters";
 import FiltersModal from "../components/FiltersModal";
 import PokeLoader from "../components/PokeLoader";
 import type { PokemonListItem } from "../api/pokeapi";
-import { getNamesByType, getEvolutionStage } from "../api/filterHelpers";
 import ErrorState from "../components/states/ErrorState";
 import NoResults from "../components/states/NoResults";
 
-const getIdFromUrl = (url: string) =>
-  Number(url.match(/\/pokemon\/(\d+)\/?$/)?.[1] ?? 0);
-const spriteUrl = (id: number) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
+import styles from "./homeStyles";
+import HomeHub from "../components/home/HomeHub";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { useFilterEngine } from "../hooks/useFilterEngine";
+import { getIdFromUrl, spriteUrl } from "../utils/pokemonAssets";
+import { useRandomSubset } from "../hooks/useRandomSubset";
 
 export default function HomeScreen({ navigation }: any) {
   const {
@@ -25,86 +28,70 @@ export default function HomeScreen({ navigation }: any) {
     isFetchingNextPage,
     isLoading,
     isError,
-    refetch, 
+    refetch,
     isFetching,
   } = usePokemons();
 
   const favorites = useFavorites((s) => s.favorites);
   const toggleFav = useFavorites((s) => s.toggle);
 
-  const filters = useFilters(); 
-  const { reset: resetFilters } = useFilters();
+  const {
+    types,
+    stage,
+    onlyFavorites,
+    generation,
+    reset: resetFilters,
+  } = useFilters();
 
-  const [query, setQuery] = useState("");
+  const [draftQuery, setDraftQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(draftQuery, 450);
   const [showFilters, setShowFilters] = useState(false);
-  const [isFiltering, setIsFiltering] = useState(false);
-  const [filteredData, setFilteredData] = useState<PokemonListItem[] | null>(
-    null
-  );
+  const [showHub, setShowHub] = useState(true);
 
   const items = useMemo(
     () => (data?.pages ?? []).flatMap((p) => p.items),
     [data]
   );
 
-  const byText = useMemo(
-    () => items.filter((p) => p.name.includes(query.toLowerCase())),
-    [items, query]
+  const { list, isApplying, applyFilters, hardReset } = useFilterEngine(
+    items,
+    favorites,
+    {
+      types,
+      stage: stage as any,
+      onlyFavorites,
+      generation,
+      query: debouncedQuery,
+    }
   );
 
-  const applyFilters = useCallback(async () => {
-    setIsFiltering(true);
-    try {
-      let result = [...byText];
-
-      if (filters.onlyFavorites) {
-        const favNames = new Set(Object.keys(favorites));
-        result = result.filter((r) => favNames.has(r.name));
-      }
-
-      if (filters.types.length > 0) {
-        const typeSets = await Promise.all(filters.types.map(getNamesByType));
-        const union = new Set<string>();
-        typeSets.forEach((s) => s.forEach((n) => union.add(n)));
-        result = result.filter((r) => union.has(r.name));
-      }
-
-      if (filters.stage > 0) {
-        const stages = await Promise.all(
-          result.map(
-            async (r) => [r.name, await getEvolutionStage(r.name)] as const
-          )
-        );
-        const map = new Map<string, number>(stages);
-        result = result.filter((r) => map.get(r.name) === filters.stage);
-      }
-
-      setFilteredData(result);
-    } catch {
-      setFilteredData(byText);
-    } finally {
-      setIsFiltering(false);
-    }
-  }, [byText, favorites, filters]);
-
-  React.useEffect(() => {
-    if (filteredData !== null) applyFilters();
-  }, [byText]);
-
-  const list = filteredData ?? byText;
+  const hasActiveFilters =
+    types.length > 0 ||
+    Number(stage) > 0 ||
+    onlyFavorites ||
+    debouncedQuery.trim().length > 0 ||
+    generation > 0;
 
   const keyExtractor = useCallback((item: PokemonListItem) => item.name, []);
+
+  const [randomSeed, setRandomSeed] = useState<number>(Date.now());
+  const limitedList = useRandomSubset(list, 200, randomSeed);
+
+  const listRef = useRef<FlatList<PokemonListItem>>(null);
+  const scrollTop = () =>
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+
   const handleEndReached = useCallback(() => {
     if (!hasNextPage || isFetchingNextPage) return;
+    if (limitedList.length >= 200) return;
     fetchNextPage();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, limitedList.length]);
 
   const renderItem = useCallback(
     ({ item }: { item: PokemonListItem }) => {
       const id = getIdFromUrl(item.url);
       const image = id ? spriteUrl(id) : undefined;
       const isFavorite = !!favorites[item.name];
-
       return (
         <PokemonCard
           name={item.name}
@@ -119,34 +106,81 @@ export default function HomeScreen({ navigation }: any) {
     [favorites, navigation, toggleFav]
   );
 
-  const hasActiveFilters =
-    filters.types.length > 0 ||
-    filters.stage > 0 ||
-    filters.onlyFavorites ||
-    query.length > 0;
+  const clearAll = useCallback(() => {
+    resetFilters(); 
+    setDraftQuery("");
+    hardReset(); 
+    setRandomSeed(Date.now());
+    setShowHub(true);
+  }, [hardReset, resetFilters]);
 
-  const clearAll = () => {
+  const handleSubmitSearch = useCallback(() => {
     resetFilters();
-    setQuery("");
-    setFilteredData(null);
-  };
+    setDraftQuery("");
+    hardReset();
+    setRandomSeed(Date.now());
+    setShowHub(false);
+  }, [hardReset, resetFilters]);
+
+  const quickGen = useCallback(
+    async (gen: Filters["generation"]) => {
+      const st = useFilters.getState();
+      useFilters.setState({
+        types: [],
+        generation: gen,
+        stage: 0,
+        onlyFavorites: st.onlyFavorites,
+      });
+      await applyFilters({ silent: false });
+      setRandomSeed(Date.now()); 
+      setShowHub(false);
+      scrollTop();
+    },
+    [applyFilters]
+  );
+
+  const quickType = useCallback(
+    async (t: string) => {
+      const st = useFilters.getState();
+      useFilters.setState({
+        types: [t],
+        generation: 0,
+        stage: 0,
+        onlyFavorites: st.onlyFavorites,
+      });
+      await applyFilters({ silent: false });
+      setRandomSeed(Date.now());
+      setShowHub(false);
+      scrollTop();
+    },
+    [applyFilters]
+  );
+
+  const quickStage = useCallback(
+    async (s: 1 | 2 | 3) => {
+      const st = useFilters.getState();
+      useFilters.setState({
+        stage: s,
+        types: [],
+        generation: 0,
+        onlyFavorites: st.onlyFavorites,
+      });
+      await applyFilters({ silent: false });
+      setRandomSeed(Date.now());
+      setShowHub(false);
+      scrollTop();
+    },
+    [applyFilters]
+  );
 
   if (isLoading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#000",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <View style={styles.centered}>
         <PokeLoader size={96} />
         <Text style={{ color: "#9CA3AF", marginTop: 8 }}>Cargando…</Text>
       </View>
     );
   }
-
   if (isError) {
     return (
       <View
@@ -154,6 +188,21 @@ export default function HomeScreen({ navigation }: any) {
       >
         <ErrorState onRetry={() => refetch()} />
       </View>
+    );
+  }
+
+  if (showHub) {
+    return (
+      <HomeHub
+        draftQuery={draftQuery}
+        setDraftQuery={setDraftQuery}
+        onOpenFilters={() => setShowFilters(true)}
+        onSubmitSearch={handleSubmitSearch}
+        onQuickGen={quickGen}
+        onQuickType={quickType}
+        onQuickStage={quickStage}
+        warmup={undefined}
+      />
     );
   }
 
@@ -166,63 +215,35 @@ export default function HomeScreen({ navigation }: any) {
         paddingTop: 16,
       }}
     >
-      <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-        <TextInput
-          placeholder="Buscar..."
-          value={query}
-          onChangeText={setQuery}
-          placeholderTextColor="#888"
-          style={{
-            flex: 1,
-            color: "#fff",
-            borderWidth: 1,
-            borderColor: "#222",
-            padding: 10,
-            borderRadius: 10,
-          }}
-        />
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 8,
+          marginBottom: 12,
+          justifyContent: "space-between",
+        }}
+      >
         <Pressable
-          onPress={() => setShowFilters(true)}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 10,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#111",
-            borderWidth: 1,
-            borderColor: "#222",
-          }}
+          onPress={clearAll} 
+          style={styles.iconBtn}
           android_ripple={{ color: "#1f2937" }}
         >
-          <Ionicons name="options-outline" size={20} color="#fff" />
+          <Ionicons name="grid-outline" size={18} color="#fff" />
         </Pressable>
+        {/* 
+        <Pressable
+          onPress={() => { setRandomSeed(Date.now()); scrollTop(); }}
+          style={styles.iconBtn}
+          android_ripple={{ color: "#1f2937" }}
+        >
+          <Ionicons name="shuffle-outline" size={18} color="#fff" />
+        </Pressable> */}
       </View>
 
-      {isFiltering && (
-        <View
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.35)",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 2,
-          }}
-        >
-          <PokeLoader size={72} />
-          <Text style={{ color: "#9CA3AF", marginTop: 8 }}>
-            Aplicando filtros…
-          </Text>
-        </View>
-      )}
-
       <FlatList
-        data={list}
-        keyExtractor={keyExtractor}
+        ref={listRef}
+        data={limitedList}
+        keyExtractor={(it) => it.name}
         numColumns={1}
         contentContainerStyle={{ gap: 12, paddingBottom: 24, flexGrow: 1 }}
         onEndReachedThreshold={0.6}
@@ -230,7 +251,6 @@ export default function HomeScreen({ navigation }: any) {
         renderItem={renderItem}
         extraData={favorites}
         refreshing={isFetching && !isLoading}
-        onRefresh={() => refetch()}
         ListEmptyComponent={
           <NoResults
             title="No encontramos pokémon"
@@ -245,12 +265,21 @@ export default function HomeScreen({ navigation }: any) {
         ListFooterComponent={
           isFetchingNextPage ? <PokeLoader size={64} /> : null
         }
+        windowSize={11}
+        removeClippedSubviews
+        maxToRenderPerBatch={12}
+        updateCellsBatchingPeriod={50}
       />
 
       <FiltersModal
         visible={showFilters}
         onClose={() => setShowFilters(false)}
-        onApply={applyFilters}
+        onApply={async () => {
+          await applyFilters({ silent: false });
+          setRandomSeed(Date.now());
+          setShowHub(false);
+          scrollTop();
+        }}
       />
     </View>
   );

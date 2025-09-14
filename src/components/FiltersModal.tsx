@@ -24,12 +24,9 @@ const ALL_TYPES = [
   "steel",
   "fairy",
 ];
+const ALL_GENS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-type Props = {
-  visible: boolean;
-  onClose: () => void;
-  onApply: () => void;
-};
+type Props = { visible: boolean; onClose: () => void; onApply: () => void };
 
 export default function FiltersModal({ visible, onClose, onApply }: Props) {
   const {
@@ -39,6 +36,8 @@ export default function FiltersModal({ visible, onClose, onApply }: Props) {
     setStage,
     onlyFavorites,
     toggleOnlyFavorites,
+    generation,
+    setGeneration,
     reset,
   } = useFilters();
 
@@ -83,6 +82,38 @@ export default function FiltersModal({ visible, onClose, onApply }: Props) {
           </View>
 
           <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+            {/* Generación */}
+            <Text style={{ color: "#9CA3AF", marginBottom: 8 }}>
+              Generación
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 8,
+                marginBottom: 16,
+              }}
+            >
+              {[0, ...ALL_GENS].map((g) => (
+                <Pressable
+                  key={g}
+                  onPress={() => setGeneration(g as any)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 10,
+                    backgroundColor: generation === g ? "#1f2937" : "#111",
+                    borderWidth: 1,
+                    borderColor: "#1f2937",
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>
+                    {g === 0 ? "Cualquiera" : `Gen ${g}`}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
             {/* Tipos */}
             <Text style={{ color: "#9CA3AF", marginBottom: 8 }}>Tipos</Text>
             <View
@@ -122,7 +153,7 @@ export default function FiltersModal({ visible, onClose, onApply }: Props) {
               })}
             </View>
 
-            {/* Fase de evolución */}
+            {/* Fase */}
             <Text style={{ color: "#9CA3AF", marginBottom: 8 }}>
               Fase de evolución
             </Text>
@@ -147,7 +178,7 @@ export default function FiltersModal({ visible, onClose, onApply }: Props) {
               ))}
             </View>
 
-            {/* Solo favoritos */}
+            {/* Favoritos */}
             <View
               style={{
                 flexDirection: "row",
@@ -166,7 +197,7 @@ export default function FiltersModal({ visible, onClose, onApply }: Props) {
             </View>
           </ScrollView>
 
-          {/* Footer botones */}
+          {/* Footer */}
           <View style={{ flexDirection: "row", gap: 8 }}>
             <Pressable
               onPress={reset}

@@ -1,52 +1,99 @@
-// --- Por tipo --------------------------------------------------------------
+const BASE = "https://pokeapi.co/api/v2";
+
 const typeCache = new Map<string, Set<string>>();
 
 export async function getNamesByType(type: string): Promise<Set<string>> {
-    if (typeCache.has(type)) return typeCache.get(type)!;
-    const r = await fetch(`https://pokeapi.co/api/v2/type/${type}`);
+    const key = String(type).toLowerCase();
+    if (typeCache.has(key)) return typeCache.get(key)!;
+
+    const r = await fetch(`${BASE}/type/${key}`);
+    if (!r.ok) throw new Error(`type '${key}' fetch failed`);
     const json = await r.json();
-    const set = new Set<string>(json.pokemon.map((p: any) => p.pokemon.name));
-    typeCache.set(type, set);
+
+    const set = new Set<string>(
+        (json?.pokemon ?? []).map((p: any) => String(p?.pokemon?.name ?? "").toLowerCase())
+    );
+    typeCache.set(key, set);
     return set;
 }
 
-// --- Por fase de evolución -------------------------------------------------
-const speciesCache = new Map<string, any>();
-const chainCache = new Map<number, any>();
-const stageCache = new Map<string, number>();
+const speciesCache = new Map<string, any>(); 
+const chainCache = new Map<number, any>();  
+const stageCache = new Map<string, number>(); 
+
+function clampStage(n: number) {
+    return Math.max(0, Math.min(3, n | 0));
+}
+
+function chainIdFromUrl(url?: string | null): number | null {
+    if (!url) return null;
+    const m = url.match(/evolution-chain\/(\d+)\/?$/);
+    return m ? Number(m[1]) : null;
+}
+
+function findStage(node: any, wanted: string, depth: number): number {
+    if (!node) return 0;
+    const name = String(node?.species?.name ?? "").toLowerCase();
+    if (name === wanted) return depth;
+    const kids: any[] = node?.evolves_to ?? [];
+    for (const k of kids) {
+        const d = findStage(k, wanted, depth + 1);
+        if (d) return d;
+    }
+    return 0;
+}
 
 export async function getEvolutionStage(name: string): Promise<number> {
-    if (stageCache.has(name)) return stageCache.get(name)!;
+    const key = String(name).toLowerCase();
+    if (stageCache.has(key)) return stageCache.get(key)!;
 
-    //species → evolution_chain.url
-    let species = speciesCache.get(name);
+    let species = speciesCache.get(key);
     if (!species) {
-        const rs = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${name}`);
-        if (!rs.ok) throw new Error("species");
+        const rs = await fetch(`${BASE}/pokemon-species/${key}`);
+        if (!rs.ok) {
+            stageCache.set(key, 0);
+            return 0;
+        }
         species = await rs.json();
-        speciesCache.set(name, species);
+        speciesCache.set(key, species);
     }
-    const chainUrl: string = species.evolution_chain?.url;
-    const chainId = Number(chainUrl.match(/\/(\d+)\/?$/)?.[1] ?? 0);
+
+    const chainUrl: string | undefined = species?.evolution_chain?.url;
+    const chainId = chainIdFromUrl(chainUrl);
+    if (chainId == null || !chainUrl) {
+        stageCache.set(key, 0);
+        return 0;
+    }
 
     let chain = chainCache.get(chainId);
     if (!chain) {
         const rc = await fetch(chainUrl);
-        if (!rc.ok) throw new Error("chain");
+        if (!rc.ok) {
+            stageCache.set(key, 0);
+            return 0;
+        }
         chain = await rc.json();
         chainCache.set(chainId, chain);
     }
 
-    const stage = findStage(chain.chain, name, 1);
-    stageCache.set(name, stage || 1);
-    return stage || 1;
+    const depth = findStage(chain?.chain, key, 1);
+    const out = clampStage(depth);
+    stageCache.set(key, out);
+    return out;
 }
 
-function findStage(node: any, name: string, depth: number): number {
-    if (node?.species?.name === name) return depth;
-    for (const child of node?.evolves_to ?? []) {
-        const r = findStage(child, name, depth + 1);
-        if (r) return r;
-    }
-    return 0;
+const genCache = new Map<number, Set<string>>();
+
+export async function getNamesByGeneration(gen: number): Promise<Set<string>> {
+    if (genCache.has(gen)) return genCache.get(gen)!;
+
+    const res = await fetch(`${BASE}/generation/${gen}/`);
+    if (!res.ok) throw new Error(`generation ${gen} fetch failed`);
+    const json = await res.json();
+
+    const out = new Set<string>(
+        (json?.pokemon_species ?? []).map((s: any) => String(s?.name ?? "").toLowerCase())
+    );
+    genCache.set(gen, out);
+    return out;
 }

@@ -20,7 +20,7 @@ export default function TabsNavigator() {
       screenOptions={({ route }) => ({
         tabBarActiveTintColor: "#3b82f6",
         tabBarInactiveTintColor: "#9ca3af",
-        tabBarStyle: { backgroundColor: "#fff" },
+        tabBarStyle: { backgroundColor: "#000" },
         headerTitle: route.name,
         tabBarIcon: ({ color, size, focused }) => {
           const name =

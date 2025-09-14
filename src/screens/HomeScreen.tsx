@@ -19,6 +19,9 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useFilterEngine } from "../hooks/useFilterEngine";
 import { getIdFromUrl, spriteUrl } from "../utils/pokemonAssets";
 import { useRandomSubset } from "../hooks/useRandomSubset";
+import { usePokemonIndex } from "../hooks/usePokemonIndex";
+import { ensurePokemonIndex } from "../api/pokemonIndex";
+import { ensureStageIndex } from "../api/getPokemonsByStage";
 
 export default function HomeScreen({ navigation }: any) {
   const {
@@ -48,10 +51,12 @@ export default function HomeScreen({ navigation }: any) {
   const [showFilters, setShowFilters] = useState(false);
   const [showHub, setShowHub] = useState(true);
 
-  const items = useMemo(
-    () => (data?.pages ?? []).flatMap((p) => p.items),
-    [data]
-  );
+  const allIndex = usePokemonIndex();
+
+  const items = useMemo(() => {
+    if (allIndex && allIndex.length > 0) return allIndex;
+    return (data?.pages ?? []).flatMap((p) => p.items);
+  }, [allIndex, data]);
 
   const { list, isApplying, applyFilters, hardReset } = useFilterEngine(
     items,
@@ -115,8 +120,8 @@ export default function HomeScreen({ navigation }: any) {
   }, [hardReset, resetFilters]);
 
   const handleSubmitSearch = useCallback(() => {
-    setShowHub(false); 
     setRandomSeed(Date.now());
+    setShowHub(false);
   }, []);
 
   const handleSeeAll = useCallback(() => {
@@ -127,64 +132,57 @@ export default function HomeScreen({ navigation }: any) {
     setShowHub(false);
   }, [hardReset, resetFilters]);
 
-  const quickGen = useCallback(
-    async (gen: Filters["generation"]) => {
-      setShowHub(false);
-      setRandomSeed(Date.now());
+  const quickGen = useCallback((gen: Filters["generation"]) => {
+    ensurePokemonIndex();
+    ensureStageIndex();
 
-      const st = useFilters.getState();
-      useFilters.setState({
-        types: [],
-        generation: gen,
-        stage: 0,
-        onlyFavorites: st.onlyFavorites,
-      });
+    const st = useFilters.getState();
+    useFilters.setState({
+      types: [],
+      generation: gen,
+      stage: 0,
+      onlyFavorites: st.onlyFavorites,
+    });
 
-      await applyFilters({ silent: false });
-      scrollTop();
-    },
-    [applyFilters]
-  );
+    setRandomSeed(Date.now());
+    setShowHub(false);
+  }, []);
 
-  const quickType = useCallback(
-    async (t: string) => {
-      setShowHub(false);
-      setRandomSeed(Date.now());
+  const quickType = useCallback((t: string) => {
+    ensurePokemonIndex();
+    ensureStageIndex();
 
-      const st = useFilters.getState();
-      useFilters.setState({
-        types: [t],
-        generation: 0,
-        stage: 0,
-        onlyFavorites: st.onlyFavorites,
-      });
+    const st = useFilters.getState();
+    useFilters.setState({
+      types: [t],
+      generation: 0,
+      stage: 0,
+      onlyFavorites: st.onlyFavorites,
+    });
 
-      await applyFilters({ silent: false });
-      scrollTop();
-    },
-    [applyFilters]
-  );
+    setRandomSeed(Date.now());
+    setShowHub(false);
+  }, []);
 
-  const quickStage = useCallback(
-    async (s: 1 | 2 | 3) => {
-      setShowHub(false);
-      setRandomSeed(Date.now());
+  const quickStage = useCallback((s: 1 | 2 | 3) => {
+    ensurePokemonIndex();
+    ensureStageIndex();
 
-      const st = useFilters.getState();
-      useFilters.setState({
-        stage: s,
-        types: [],
-        generation: 0,
-        onlyFavorites: st.onlyFavorites,
-      });
+    const st = useFilters.getState();
+    useFilters.setState({
+      stage: s,
+      types: [],
+      generation: 0,
+      onlyFavorites: st.onlyFavorites,
+    });
 
-      await applyFilters({ silent: false });
-      scrollTop();
-    },
-    [applyFilters]
-  );
+    setRandomSeed(Date.now());
+    setShowHub(false);
+  }, []);
 
-  if (isLoading) {
+  const buildingIndex = !allIndex && !showHub;
+
+  if (isLoading && !allIndex) {
     return (
       <View style={styles.centered}>
         <PokeLoader size={96} />
@@ -208,13 +206,27 @@ export default function HomeScreen({ navigation }: any) {
         draftQuery={draftQuery}
         setDraftQuery={setDraftQuery}
         onOpenFilters={() => setShowFilters(true)}
-        onSubmitSearch={handleSubmitSearch} 
+        onSubmitSearch={handleSubmitSearch}
         onSeeAll={handleSeeAll}
         onQuickGen={quickGen}
         onQuickType={quickType}
         onQuickStage={quickStage}
-        warmup={undefined}
+        warmup={() => {
+          ensurePokemonIndex();
+          ensureStageIndex();
+        }}
       />
+    );
+  }
+
+  if (isApplying || buildingIndex) {
+    return (
+      <View style={styles.centered}>
+        <PokeLoader size={96} />
+        <Text style={{ color: "#9CA3AF", marginTop: 8 }}>
+          {buildingIndex ? "Preparando catálogo…" : "Filtrando…"}
+        </Text>
+      </View>
     );
   }
 
@@ -296,11 +308,9 @@ export default function HomeScreen({ navigation }: any) {
       <FiltersModal
         visible={showFilters}
         onClose={() => setShowFilters(false)}
-        onApply={async () => {
-          setShowHub(false);
+        onApply={() => {
           setRandomSeed(Date.now());
-          await applyFilters({ silent: false });
-          scrollTop();
+          setShowHub(false);
         }}
       />
     </View>

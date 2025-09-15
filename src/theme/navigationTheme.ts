@@ -1,4 +1,3 @@
-// src/theme/navigationTheme.ts
 import {
     DarkTheme as NavigationDarkTheme,
     DefaultTheme as NavigationDefaultTheme,

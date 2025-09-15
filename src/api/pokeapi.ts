@@ -76,13 +76,12 @@ export async function fetchEvolutionNamesFor(
   const walk = (n?: any) => {
     if (!n) return;
     out.push(n.species.name);
-    (n.evolves_to ?? []).forEach(walk); // soporta ramas (ej. eevee)
+    (n.evolves_to ?? []).forEach(walk); 
   };
   walk(chain.chain);
   return out;
 }
 
-// --- Moves: prioriza los aprendidos por "level-up" y trae detalles del move ---
 export async function fetchPokemonMovesLevelUp(
   idOrName: number | string,
   limit = 12
@@ -111,7 +110,6 @@ export async function fetchPokemonMovesLevelUp(
   return details;
 }
 
-// --- Locations: áreas de encuentro /encounters ---
 export async function fetchPokemonEncounterAreas(
   idOrName: number | string
 ): Promise<string[]> {

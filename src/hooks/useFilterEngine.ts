@@ -6,6 +6,7 @@ import {
     getNamesByGeneration,
 } from "../api/filterHelpers";
 import { ensureFormsIndex } from "../api/pokemonFormsIndex";
+import { fastStageFilter, prewarmStageIndex } from "../api/stageFast";
 
 type StageNum = 0 | 1 | 2 | 3;
 
@@ -27,6 +28,7 @@ type AbortState = { ctrl: AbortController | null; seq: number };
 
 const MAX_STAGE_CANDIDATES = 1200;
 const STAGE_FETCH_CHUNK = 24;
+const APPLY_TIMEOUT_MS = 10_000;
 
 export function useFilterEngine(
     items: PokemonListItem[],
@@ -35,6 +37,9 @@ export function useFilterEngine(
 ) {
     const [list, setList] = useState<PokemonListItem[]>(items);
     const [isApplying, setIsApplying] = useState(false);
+    const [applyTimeoutExceeded, setApplyTimeoutExceeded] = useState(false);
+
+    const applyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const cachesRef = useRef<Caches>({
         typeSets: new Map(),
@@ -100,10 +105,29 @@ export function useFilterEngine(
         filters.generation > 0 ||
         filters.query.trim().length > 0;
 
+    const clearApplyTimer = () => {
+        if (applyTimerRef.current) {
+            clearTimeout(applyTimerRef.current);
+            applyTimerRef.current = null;
+        }
+    };
+
+    const startApplyTimer = () => {
+        clearApplyTimer();
+        applyTimerRef.current = setTimeout(() => {
+            setApplyTimeoutExceeded(true);
+        }, APPLY_TIMEOUT_MS);
+    };
+
     const applyFilters = useCallback(
         async (opts?: { silent?: boolean }) => {
             const silent = !!opts?.silent;
-            if (!silent) setIsApplying(true);
+
+            if (!silent) {
+                setApplyTimeoutExceeded(false);
+                setIsApplying(true);
+                startApplyTimer();
+            }
 
             const seq = ++abortRef.current.seq;
             abortRef.current.ctrl?.abort();
@@ -113,12 +137,30 @@ export function useFilterEngine(
                 const q = filters.query.trim().toLowerCase();
                 let result = [...byText];
 
+                const stage = Number(filters.stage) as StageNum;
+                const onlyStageActive =
+                    stage > 0 &&
+                    filters.types.length === 0 &&
+                    !filters.onlyFavorites &&
+                    filters.generation === 0 &&
+                    q.length === 0;
+
+                if (onlyStageActive) {
+                    prewarmStageIndex();
+                    const fast = await fastStageFilter(items, stage as 1 | 2 | 3, 200, {
+                        includeBabyAsStage0: false,
+                    });
+                    if (seq !== abortRef.current.seq) return;
+                    setList(fast);
+                    return;
+                }
+
                 const onlyTextSearch =
                     !!q &&
                     filters.types.length === 0 &&
                     !filters.onlyFavorites &&
                     filters.generation === 0 &&
-                    Number(filters.stage) === 0;
+                    stage === 0;
 
                 if (onlyTextSearch) {
                     try {
@@ -130,8 +172,7 @@ export function useFilterEngine(
                             );
                             result = result.concat(extra.slice(0, 150));
                         }
-                    } catch {
-                    }
+                    } catch { }
                 }
 
                 if (filters.onlyFavorites) {
@@ -152,7 +193,6 @@ export function useFilterEngine(
                     result = result.filter((r) => gset.has(r.name));
                 }
 
-                const stage = Number(filters.stage) as StageNum;
                 if (stage > 0 && result.length > 0) {
                     const names = result.map((r) => r.name);
                     await ensureStagesFor(names);
@@ -164,7 +204,10 @@ export function useFilterEngine(
                 if (seq !== abortRef.current.seq) return;
                 setList(result);
             } finally {
-                if (!silent && seq === abortRef.current.seq) setIsApplying(false);
+                if (!silent && seq === abortRef.current.seq) {
+                    clearApplyTimer();
+                    setIsApplying(false);
+                }
             }
         },
         [
@@ -178,6 +221,7 @@ export function useFilterEngine(
             ensureTypeSet,
             ensureGenSet,
             ensureStagesFor,
+            items,
         ]
     );
 
@@ -190,6 +234,8 @@ export function useFilterEngine(
         cachesRef.current.genSets.clear();
         cachesRef.current.stages.clear();
 
+        setApplyTimeoutExceeded(false);
+        clearApplyTimer();
         setList(items);
     }, [items]);
 
@@ -198,7 +244,7 @@ export function useFilterEngine(
             setList(byText);
             return;
         }
-        applyFilters({ silent: false });
+        applyFilters({ silent: true });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         byText,
@@ -209,5 +255,9 @@ export function useFilterEngine(
         filters.query,
     ]);
 
-    return { list, isApplying, applyFilters, hardReset };
+    useEffect(() => {
+        return () => clearApplyTimer();
+    }, []);
+
+    return { list, isApplying, applyTimeoutExceeded, applyFilters, hardReset };
 }

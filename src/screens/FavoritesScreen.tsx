@@ -1,4 +1,3 @@
-// src/screens/FavoritesScreen.tsx
 import React, { useMemo, useCallback } from "react";
 import { View, Text, FlatList, ActivityIndicator } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +7,7 @@ import PokemonCard from "../components/PokemonCard";
 import { useFavorites } from "../store/useFavorites";
 import ErrorState from "../components/states/ErrorState";
 
-const CHUNK_SIZE = 8; // controla concurrencia
+const CHUNK_SIZE = 8;  
 
 async function fetchFavoritesBatch(names: string[]) {
   const items: PokemonDetails[] = [];
@@ -25,7 +24,6 @@ async function fetchFavoritesBatch(names: string[]) {
     }
   }
 
-  // ordena por id para una lista estable
   items.sort((a, b) => a.id - b.id);
   return { items, failed };
 }
@@ -58,9 +56,8 @@ export default function FavoritesScreen({ navigation }: any) {
   const { data, isFetching, isError, refetch } = useQuery({
     queryKey: ["favorites/batch", namesKey],
     enabled: names.length > 0,
-    staleTime: 30 * 60 * 1000, // 30 min
+    staleTime: 30 * 60 * 1000, 
     queryFn: () => fetchFavoritesBatch(names),
-    // Si usas RQ v5, esto sustituye a keepPreviousData:
     placeholderData: (prev) => prev,
     retry: 1,
     retryDelay: 800,
@@ -86,7 +83,6 @@ export default function FavoritesScreen({ navigation }: any) {
     [favorites, toggle, navigation]
   );
 
-  // Si todo falló, muestra un error “recargar”
   if (isError || (failed === names.length && items.length === 0)) {
     return (
       <View
@@ -99,7 +95,6 @@ export default function FavoritesScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000", padding: 16 }}>
-      {/* Aviso suave si hubo algunos fallos pero hay resultados */}
       {failed > 0 && items.length > 0 ? (
         <Text style={{ color: "#a3a3a3", marginBottom: 8 }}>
           {failed} favorito(s) no se pudieron cargar. Intenta refrescar.
@@ -115,7 +110,6 @@ export default function FavoritesScreen({ navigation }: any) {
           numColumns={1}
           contentContainerStyle={{ gap: 12, paddingBottom: 24 }}
           renderItem={renderItem}
-          // Pull to refresh
           refreshing={isFetching}
           onRefresh={() => refetch()}
           extraData={namesKey}

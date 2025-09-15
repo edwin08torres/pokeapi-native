@@ -1,4 +1,10 @@
-import React, { useMemo, useState, useCallback, useRef } from "react";
+import React, {
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
 import { FlatList, View, Text, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -37,7 +43,6 @@ export default function HomeScreen({ navigation }: any) {
 
   const favorites = useFavorites((s) => s.favorites);
   const toggleFav = useFavorites((s) => s.toggle);
-
   const {
     types,
     stage,
@@ -111,6 +116,7 @@ export default function HomeScreen({ navigation }: any) {
     [favorites, navigation, toggleFav]
   );
 
+  // acciones
   const clearAll = useCallback(() => {
     resetFilters();
     setDraftQuery("");
@@ -135,7 +141,6 @@ export default function HomeScreen({ navigation }: any) {
   const quickGen = useCallback((gen: Filters["generation"]) => {
     ensurePokemonIndex();
     ensureStageIndex();
-
     const st = useFilters.getState();
     useFilters.setState({
       types: [],
@@ -143,7 +148,6 @@ export default function HomeScreen({ navigation }: any) {
       stage: 0,
       onlyFavorites: st.onlyFavorites,
     });
-
     setRandomSeed(Date.now());
     setShowHub(false);
   }, []);
@@ -151,7 +155,6 @@ export default function HomeScreen({ navigation }: any) {
   const quickType = useCallback((t: string) => {
     ensurePokemonIndex();
     ensureStageIndex();
-
     const st = useFilters.getState();
     useFilters.setState({
       types: [t],
@@ -159,7 +162,6 @@ export default function HomeScreen({ navigation }: any) {
       stage: 0,
       onlyFavorites: st.onlyFavorites,
     });
-
     setRandomSeed(Date.now());
     setShowHub(false);
   }, []);
@@ -167,7 +169,6 @@ export default function HomeScreen({ navigation }: any) {
   const quickStage = useCallback((s: 1 | 2 | 3) => {
     ensurePokemonIndex();
     ensureStageIndex();
-
     const st = useFilters.getState();
     useFilters.setState({
       stage: s,
@@ -175,12 +176,35 @@ export default function HomeScreen({ navigation }: any) {
       generation: 0,
       onlyFavorites: st.onlyFavorites,
     });
-
     setRandomSeed(Date.now());
     setShowHub(false);
   }, []);
 
   const buildingIndex = !allIndex && !showHub;
+  const [tookTooLong, setTookTooLong] = useState(false);
+
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    if (isApplying || buildingIndex) {
+      setTookTooLong(false);
+      t = setTimeout(() => setTookTooLong(true), 10_000);
+    } else {
+      setTookTooLong(false);
+    }
+    return () => {
+      if (t) clearTimeout(t);
+    };
+  }, [isApplying, buildingIndex]);
+
+  const retryNow = useCallback(async () => {
+    setTookTooLong(false);
+    try {
+      await ensurePokemonIndex();
+      await ensureStageIndex();
+      await applyFilters({ silent: false });
+      scrollTop();
+    } catch {}
+  }, [applyFilters]);
 
   if (isLoading && !allIndex) {
     return (
@@ -219,17 +243,94 @@ export default function HomeScreen({ navigation }: any) {
     );
   }
 
-  if (isApplying || buildingIndex) {
+  if (tookTooLong) {
+    return (
+      <View style={styles.centered}>
+        <Text
+          style={{
+            color: "#fff",
+            fontSize: 18,
+            fontWeight: "800",
+            marginBottom: 8,
+          }}
+        >
+          Se está tardando más de lo normal
+        </Text>
+        <Text
+          style={{
+            color: "#9CA3AF",
+            textAlign: "center",
+            marginBottom: 16,
+            paddingHorizontal: 24,
+          }}
+        >
+          Ocurrió un problema inesperado. Puedes reintentar, refrescar o volver
+          al Hub.
+        </Text>
+
+        <Pressable
+          onPress={retryNow}
+          style={{
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+            backgroundColor: "#3b82f6",
+            borderRadius: 10,
+            marginBottom: 10,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "900" }}>Reintentar</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            setTookTooLong(false);
+            refetch();
+          }}
+          style={{
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+            backgroundColor: "#111",
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: "#222",
+            marginBottom: 10,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "800" }}>Refrescar</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={clearAll}
+          style={{
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+            backgroundColor: "#111",
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: "#222",
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "800" }}>
+            Volver al Hub
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  //Loader a pantalla completa
+  if (buildingIndex) {
     return (
       <View style={styles.centered}>
         <PokeLoader size={96} />
         <Text style={{ color: "#9CA3AF", marginTop: 8 }}>
-          {buildingIndex ? "Preparando catálogo…" : "Filtrando…"}
+          Preparando catálogo…
         </Text>
       </View>
     );
   }
 
+  // Lista
   return (
     <View
       style={{

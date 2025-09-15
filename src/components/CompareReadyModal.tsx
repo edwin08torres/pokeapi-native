@@ -7,11 +7,11 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onOpenCompare: () => void;
-  aName: string; // referencia
-  bName: string; // seleccionado actual
-  aImage?: string | null; // opcional
-  bImage?: string | null; // opcional
-  color?: string; // acento (usa el del tipo principal)
+  aName: string; 
+  bName: string; 
+  aImage?: string | null;
+  bImage?: string | null; 
+  color?: string;
 };
 
 export default function CompareReadyModal({

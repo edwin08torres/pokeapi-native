@@ -31,15 +31,24 @@ const GENS_META: {
   starters: number[];
   grad: [string, string];
 }[] = [
-  { g: 1, starters: [1, 4, 7], grad: ["#ff6a3d", "#7c3aed"] },
-  { g: 2, starters: [152, 155, 158], grad: ["#22c55e", "#2563eb"] },
-  { g: 3, starters: [252, 255, 258], grad: ["#f59e0b", "#9333ea"] },
-  { g: 4, starters: [387, 390, 393], grad: ["#60a5fa", "#1d4ed8"] },
-  { g: 5, starters: [495, 498, 501], grad: ["#fb7185", "#0ea5e9"] },
-  { g: 6, starters: [650, 653, 656], grad: ["#f97316", "#ef4444"] },
-  { g: 7, starters: [722, 725, 728], grad: ["#06b6d4", "#8b5cf6"] },
-  { g: 8, starters: [810, 813, 816], grad: ["#22d3ee", "#22c55e"] },
-  { g: 9, starters: [906, 909, 912], grad: ["#f43f5e", "#3b82f6"] },
+  // { g: 1, starters: [1, 4, 7], grad: ["#ff6a3d", "#7c3aed"] },
+  // { g: 2, starters: [152, 155, 158], grad: ["#22c55e", "#2563eb"] },
+  // { g: 3, starters: [252, 255, 258], grad: ["#f59e0b", "#9333ea"] },
+  // { g: 4, starters: [387, 390, 393], grad: ["#60a5fa", "#1d4ed8"] },
+  // { g: 5, starters: [495, 498, 501], grad: ["#fb7185", "#0ea5e9"] },
+  // { g: 6, starters: [650, 653, 656], grad: ["#f97316", "#ef4444"] },
+  // { g: 7, starters: [722, 725, 728], grad: ["#06b6d4", "#8b5cf6"] },
+  // { g: 8, starters: [810, 813, 816], grad: ["#22d3ee", "#22c55e"] },
+  // { g: 9, starters: [906, 909, 912], grad: ["#f43f5e", "#3b82f6"] },
+  { g: 1, starters: [1, 4, 7], grad: ["#ef4444", "#5e1616ff"] },
+  { g: 2, starters: [152, 155, 158], grad: ["#ef4444", "#5e1616ff"] },
+  { g: 3, starters: [252, 255, 258], grad: ["#ef4444", "#5e1616ff"] },
+  { g: 4, starters: [387, 390, 393], grad: ["#ef4444", "#5e1616ff"] },
+  { g: 5, starters: [495, 498, 501], grad: ["#ef4444", "#5e1616ff"] },
+  { g: 6, starters: [650, 653, 656], grad: ["#7c3aed", "#200c44ff"] },
+  { g: 7, starters: [722, 725, 728], grad: ["#7c3aed", "#200c44ff"] },
+  { g: 8, starters: [810, 813, 816], grad: ["#7c3aed", "#200c44ff"] },
+  { g: 9, starters: [906, 909, 912], grad: ["#7c3aed", "#200c44ff"] },
 ];
 
 const QUICK_TYPES = [
@@ -57,8 +66,8 @@ type Props = {
   draftQuery: string;
   setDraftQuery: (v: string) => void;
   onOpenFilters: () => void;
-  onSubmitSearch: () => void; // ENTER en el input -> mostrar resultados con query vigente
-  onSeeAll: () => void; // CTA "Ver todos" -> limpiar filtros+query y mostrar todo
+  onSubmitSearch: () => void;
+  onSeeAll: () => void;
   onQuickGen: (g: Filters["generation"]) => void;
   onQuickType: (t: string) => void;
   onQuickStage: (s: 1 | 2 | 3) => void;
@@ -84,7 +93,7 @@ const HomeHub = memo(function HomeHub({
   return (
     <View style={{ flex: 1, backgroundColor: "#0b0b0b" }}>
       <LinearGradient
-        colors={["#ff5b61", "#7c3aed", "#0b0b0b"]}
+        colors={["#7c3aed", "#7c3aed", "#0b0b0b"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0.2, y: 1 }}
         style={{ paddingTop: 16, paddingHorizontal: 16, paddingBottom: 24 }}
@@ -115,7 +124,7 @@ const HomeHub = memo(function HomeHub({
             placeholderTextColor="#d1d5db"
             value={draftQuery}
             onChangeText={setDraftQuery}
-            onSubmitEditing={onSubmitSearch} // ← solo cierra el Hub para mostrar filtro por texto
+            onSubmitEditing={onSubmitSearch}
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
@@ -202,7 +211,8 @@ const HomeHub = memo(function HomeHub({
                 borderRadius: 999,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: colorForType(t),
+                // backgroundColor: colorForType(t),
+                backgroundColor: '#ef4444',
                 transform: [{ scale: pressed ? 0.98 : 1 }],
                 marginRight: 8,
               })}

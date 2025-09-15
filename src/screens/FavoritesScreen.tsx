@@ -1,13 +1,12 @@
 import React, { useMemo, useCallback } from "react";
 import { View, Text, FlatList, ActivityIndicator } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { fetchPokemonDetails } from "../api/pokeapi";
-import type { PokemonDetails } from "../api/pokeapi";
-import PokemonCard from "../components/PokemonCard";
-import { useFavorites } from "../store/useFavorites";
-import ErrorState from "@/components/states/ErrorState";
 
-const CHUNK_SIZE = 8;  
+import { useFavorites } from "../store/useFavorites";
+import { fetchPokemonDetails, PokemonDetails } from "@/api";
+import { PokemonCard, ErrorState } from "@/components";
+
+const CHUNK_SIZE = 8;
 
 async function fetchFavoritesBatch(names: string[]) {
   const items: PokemonDetails[] = [];
@@ -56,7 +55,7 @@ export default function FavoritesScreen({ navigation }: any) {
   const { data, isFetching, isError, refetch } = useQuery({
     queryKey: ["favorites/batch", namesKey],
     enabled: names.length > 0,
-    staleTime: 30 * 60 * 1000, 
+    staleTime: 30 * 60 * 1000,
     queryFn: () => fetchFavoritesBatch(names),
     placeholderData: (prev) => prev,
     retry: 1,

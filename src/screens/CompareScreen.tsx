@@ -4,11 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 
-import { fetchPokemonDetails } from "../api/pokeapi";
-import type { PokemonDetails } from "../api/pokeapi";
+import { fetchPokemonDetails, PokemonDetails } from "@/api";
+
 import { useCompare } from "../store/useCompare";
-import Chip from "../components/Chip";
-import StatBar from "../components/StatBar";
+
+import { Chip, StatBar } from "@/components";
+
 import { colorForType } from "../theme/typeColors";
 
 const STAT_KEYS = [

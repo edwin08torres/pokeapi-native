@@ -6,21 +6,27 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 
 import type { RootStackParamList } from "../app/navigation/RootNavigator";
-import type { PokemonStat } from "../api/pokeapi";
-import { usePokemonDetails } from "../hooks/usePokemonDetails";
-import { useEvolutionChain } from "../hooks/useEvolutionChain";
-import { usePokemonMoves } from "../hooks/usePokemonMoves";
-import { usePokemonLocations } from "../hooks/usePokemonLocations";
+
+import {
+  usePokemonDetails,
+  useEvolutionChain,
+  usePokemonMoves,
+  usePokemonLocations,
+} from "@/hooks";
+
+import { colorForType } from "../theme/typeColors";
 import { useCompare } from "../store/useCompare";
 
-import Chip from "../components/Chip";
-import StatBar from "../components/StatBar";
-import MoveCard from "../components/MoveCard";
-import { colorForType } from "../theme/typeColors";
-import CompareReadyModal from "../components/CompareReadyModal";
+import type { PokemonStat } from "@/api";
 
-import PokeLoader from "../components/PokeLoader";
-import ErrorState from "@/components/states/ErrorState";
+import {
+  Chip,
+  StatBar,
+  MoveCard,
+  CompareReadyModal,
+  PokeLoader,
+  ErrorState,
+} from "@/components";
 
 type DetailsRouteProp = RouteProp<RootStackParamList, "Details">;
 type Nav = NativeStackNavigationProp<RootStackParamList, "Details">;

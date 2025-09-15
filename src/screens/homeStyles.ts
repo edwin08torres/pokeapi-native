@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     segmentText: { color: "#fff", fontWeight: "800" },
-    cta: { marginTop: 6, backgroundColor: "#7c3aed", paddingVertical: 14, borderRadius: 14 },
+    cta: { marginTop: 6, backgroundColor: "#6740afff", paddingVertical: 14, borderRadius: 14 },
     ctaText: { color: "#fff", textAlign: "center", fontWeight: "900", letterSpacing: 0.3 },
     iconBtn: {
         width: 44,

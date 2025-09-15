@@ -20,7 +20,7 @@ import { colorForType } from "../theme/typeColors";
 import CompareReadyModal from "../components/CompareReadyModal";
 
 import PokeLoader from "../components/PokeLoader";
-import ErrorState from "../components/states/ErrorState";
+import ErrorState from "@/components/states/ErrorState";
 
 type DetailsRouteProp = RouteProp<RootStackParamList, "Details">;
 type Nav = NativeStackNavigationProp<RootStackParamList, "Details">;

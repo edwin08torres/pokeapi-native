@@ -7,6 +7,7 @@ import {
 } from "../api/filterHelpers";
 import { ensureFormsIndex } from "../api/pokemonFormsIndex";
 import { fastStageFilter, prewarmStageIndex } from "../api/stageFast";
+import { fastGenFilter } from "../api/generationFast";
 
 type StageNum = 0 | 1 | 2 | 3;
 
@@ -138,6 +139,7 @@ export function useFilterEngine(
                 let result = [...byText];
 
                 const stage = Number(filters.stage) as StageNum;
+
                 const onlyStageActive =
                     stage > 0 &&
                     filters.types.length === 0 &&
@@ -172,7 +174,8 @@ export function useFilterEngine(
                             );
                             result = result.concat(extra.slice(0, 150));
                         }
-                    } catch { }
+                    } catch {
+                    }
                 }
 
                 if (filters.onlyFavorites) {
@@ -189,8 +192,16 @@ export function useFilterEngine(
                 }
 
                 if (filters.generation > 0) {
-                    const gset = await ensureGenSet(filters.generation);
-                    result = result.filter((r) => gset.has(r.name));
+                    try {
+                        const fast = await fastGenFilter(items as any, filters.generation, Infinity, {
+                            seed: Date.now(),
+                        });
+                        const allow = new Set(fast.map((x) => x.name));
+                        result = result.filter((r) => allow.has(r.name));
+                    } catch {
+                        const gset = await ensureGenSet(filters.generation);
+                        result = result.filter((r) => gset.has(r.name));
+                    }
                 }
 
                 if (stage > 0 && result.length > 0) {

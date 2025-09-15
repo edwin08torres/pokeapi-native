@@ -93,9 +93,10 @@ const HomeHub = memo(function HomeHub({
   return (
     <View style={{ flex: 1, backgroundColor: "#0b0b0b" }}>
       <LinearGradient
-        colors={["#7c3aed", "#7c3aed", "#0b0b0b"]}
+        colors={["#ef4444", "#ef4444", "#0b0b0b"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0.2, y: 1 }}
+        
         style={{ paddingTop: 16, paddingHorizontal: 16, paddingBottom: 24 }}
       >
         <View

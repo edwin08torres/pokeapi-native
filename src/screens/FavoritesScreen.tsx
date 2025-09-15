@@ -5,7 +5,7 @@ import { fetchPokemonDetails } from "../api/pokeapi";
 import type { PokemonDetails } from "../api/pokeapi";
 import PokemonCard from "../components/PokemonCard";
 import { useFavorites } from "../store/useFavorites";
-import ErrorState from "../components/states/ErrorState";
+import ErrorState from "@/components/states/ErrorState";
 
 const CHUNK_SIZE = 8;  
 

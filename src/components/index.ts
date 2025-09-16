@@ -7,5 +7,5 @@ export { default as PokemonCard } from "./PokemonCard";
 export { default as StatBar } from "./StatBar";
 
 export { default as HomeHub } from "./home/HomeHub";
-
+export { default as TypeBadge } from "./TypeBadge";
 export { NoResults, ErrorState } from "./states";

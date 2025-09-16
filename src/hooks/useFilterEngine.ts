@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PokemonListItem } from "../api/pokeapi";
+import type { PokemonListItem } from "@api/pokeapi";
 import {
     getNamesByType,
     getEvolutionStage,
     getNamesByGeneration,
-} from "../api/filterHelpers";
-import { ensureFormsIndex } from "../api/pokemonFormsIndex";
-import { fastStageFilter, prewarmStageIndex } from "../api/stageFast";
-import { fastGenFilter } from "../api/generationFast";
+} from "@api/filterHelpers";
+import { ensureFormsIndex } from "@api/pokemonFormsIndex";
+import { fastStageFilter, prewarmStageIndex } from "@api/stageFast";
+import { fastGenFilter } from "@api/generationFast";
 
 type StageNum = 0 | 1 | 2 | 3;
 
@@ -29,7 +29,7 @@ type AbortState = { ctrl: AbortController | null; seq: number };
 
 const MAX_STAGE_CANDIDATES = 1200;
 const STAGE_FETCH_CHUNK = 24;
-const APPLY_TIMEOUT_MS = 10_000;
+const APPLY_TIMEOUT_MS = 15_000;
 
 export function useFilterEngine(
     items: PokemonListItem[],
@@ -125,6 +125,7 @@ export function useFilterEngine(
             const silent = !!opts?.silent;
 
             if (!silent) {
+                setList([]);
                 setApplyTimeoutExceeded(false);
                 setIsApplying(true);
                 startApplyTimer();
@@ -255,7 +256,18 @@ export function useFilterEngine(
             setList(byText);
             return;
         }
-        applyFilters({ silent: true });
+
+        const q = filters.query.trim().toLowerCase();
+        const stage = Number(filters.stage) as StageNum;
+
+        const onlyText =
+            !!q &&
+            filters.types.length === 0 &&
+            !filters.onlyFavorites &&
+            filters.generation === 0 &&
+            stage === 0;
+
+        applyFilters({ silent: onlyText });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         byText,
